@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Traffic AI Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-deep:     #07090f;
+    --bg-base:     #0d1117;
+    --bg-card:     #111827;
+    --bg-card2:    #161f2e;
+    --border:      rgba(255,255,255,0.06);
+    --border-hi:   rgba(255,255,255,0.12);
+    --text-pri:    #f0f4ff;
+    --text-sec:    #8899bb;
+    --text-muted:  #445066;
+    --accent-teal: #00e5c8;
+    --accent-blue: #3b82f6;
+    --accent-vio:  #7c3aed;
+    --red:         #ef4444;
+    --yellow:      #f59e0b;
+    --green:       #10b981;
+    --red-dim:     rgba(239,68,68,0.15);
+    --yellow-dim:  rgba(245,158,11,0.15);
+    --green-dim:   rgba(16,185,129,0.15);
+    --glow-teal:   0 0 32px rgba(0,229,200,0.18);
+    --glow-blue:   0 0 32px rgba(59,130,246,0.18);
+    --radius:      14px;
+    --radius-sm:   8px;
+    --transition:  0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-pri);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── animated grid background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,200,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,200,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── ambient blobs ── */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .blob-1 { width: 600px; height: 600px; background: var(--accent-teal); top: -200px; left: -200px; animation: drift 18s ease-in-out infinite alternate; }
+  .blob-2 { width: 500px; height: 500px; background: var(--accent-blue); bottom: -150px; right: -100px; animation: drift 22s ease-in-out infinite alternate-reverse; }
+  .blob-3 { width: 300px; height: 300px; background: var(--accent-vio); top: 40%; left: 50%; animation: drift 14s ease-in-out infinite alternate; }
+
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(40px, 30px) scale(1.08); }
+  }
+
+  /* ── layout ── */
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1340px;
+    margin: 0 auto;
+    padding: 0 24px 48px;
+  }
+
+  /* ── header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 36px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--accent-teal), var(--accent-blue));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--glow-teal);
+    flex-shrink: 0;
+  }
+
+  .brand-icon svg { width: 22px; height: 22px; fill: var(--bg-deep); }
+
+  .brand-text h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(90deg, #fff 40%, var(--accent-teal));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .brand-text p {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .step-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-sec);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+  }
+
+  .step-badge span { color: var(--accent-teal); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    border: none;
+    outline: none;
+  }
+
+  .btn-start {
+    background: linear-gradient(135deg, var(--accent-teal), var(--accent-blue));
+    color: var(--bg-deep);
+    box-shadow: var(--glow-teal);
+  }
+
+  .btn-start:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 0 48px rgba(0,229,200,0.3); }
+  .btn-start:active { transform: scale(0.98); }
+
+  .btn-stop {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid rgba(239,68,68,0.4);
+  }
+
+  .btn-stop:hover { background: var(--red-dim); border-color: var(--red); }
+
+  .btn-reset {
+    background: transparent;
+    color: var(--text-sec);
+    border: 1px solid var(--border);
+  }
+
+  .btn-reset:hover { background: var(--bg-card2); border-color: var(--border-hi); color: var(--text-pri); }
+
+  /* ── status bar ── */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+    padding: 10px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    color: var(--text-sec);
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+    transition: var(--transition);
+  }
+
+  .status-dot.active {
+    background: var(--accent-teal);
+    box-shadow: 0 0 8px var(--accent-teal);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  #statusText { color: var(--text-pri); font-weight: 500; }
+
+  .status-sep { color: var(--text-muted); margin: 0 4px; }
+
+  .ts { font-family: 'JetBrains Mono', monospace; color: var(--accent-teal); }
+
+  /* ── metric cards ── */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--card-accent, var(--accent-teal)), transparent);
+    opacity: 0;
+    transition: var(--transition);
+  }
+
+  .card:hover { border-color: var(--border-hi); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+  .card:hover::before { opacity: 1; }
+
+  .card-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .card-value {
+    font-size: 2.4rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  .card-sub {
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+    transition: var(--transition);
+  }
+
+  .trend.up   { color: var(--green);  background: var(--green-dim); }
+  .trend.down { color: var(--red);    background: var(--red-dim); }
+  .trend.flat { color: var(--text-muted); background: var(--bg-card2); }
+
+  /* flash on value change */
+  @keyframes flash-update {
+    0%   { background: rgba(0,229,200,0.12); }
+    100% { background: transparent; }
+  }
+
+  .card.updated { animation: flash-update 0.6s ease-out; }
+
+  /* ── signal card ── */
+  .signal-card {
+    --card-accent: var(--accent-teal);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    min-height: 180px;
+  }
+
+  .traffic-light {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #0a0d14;
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 14px 10px;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  }
+
+  .light {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  .light.red-l    { background: #1a0808; }
+  .light.yellow-l { background: #1a1208; }
+  .light.green-l  { background: #08140e; }
+
+  .light.red-l.on    { background: var(--red);    box-shadow: 0 0 18px 6px rgba(239,68,68,0.6); }
+  .light.yellow-l.on { background: var(--yellow); box-shadow: 0 0 18px 6px rgba(245,158,11,0.6); }
+  .light.green-l.on  { background: var(--green);  box-shadow: 0 0 18px 6px rgba(16,185,129,0.6); }
+
+  .signal-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: color 0.4s;
+  }
+
+  .signal-timer {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  /* ── bottom row ── */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .bottom-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── chart card ── */
+  .chart-card {
+    --card-accent: var(--accent-blue);
+    padding: 24px;
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chart-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-pri);
+  }
+
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--text-sec);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .chart-wrap { position: relative; height: 260px; }
+
+  /* ── log panel ── */
+  .log-card {
+    --card-accent: var(--accent-vio);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .log-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-pri);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .log-title-badge {
+    font-size: 0.65rem;
+    background: rgba(124,58,237,0.2);
+    color: #a78bfa;
+    border: 1px solid rgba(124,58,237,0.3);
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+
+  .log-scroll {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 230px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-scroll::-webkit-scrollbar { width: 4px; }
+  .log-scroll::-webkit-scrollbar-track { background: transparent; }
+  .log-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .log-entry {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 0.72rem;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--bg-card2);
+    border-left: 2px solid var(--border);
+    animation: slide-in 0.3s ease-out;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-entry.info   { border-left-color: var(--accent-teal); }
+  .log-entry.warn   { border-left-color: var(--yellow); }
+  .log-entry.good   { border-left-color: var(--green); }
+  .log-entry.bad    { border-left-color: var(--red); }
+
+  .log-time {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .log-msg { color: var(--text-sec); line-height: 1.4; }
+  .log-msg strong { color: var(--text-pri); font-weight: 600; }
+
+  /* ── sparkline mini ── */
+  .mini-spark {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 80px;
+    height: 40px;
+    opacity: 0.25;
+  }
+
+  /* ── responsive ── */
+  @media (max-width: 600px) {
+    .brand-text h1 { font-size: 1rem; }
+    .card-value { font-size: 1.9rem; }
+    .bottom-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="shell">
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Smart Traffic AI Dashboard</h1>
+        <p>Reinforcement Learning · Signal Optimization</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="step-badge">STEP <span id="stepCounter">—</span></div>
+      <button class="btn btn-reset" id="btnReset" onclick="resetSim()">↺ Reset</button>
+      <button class="btn btn-stop" id="btnStop" onclick="stopSim()" style="display:none">■ Stop</button>
+      <button class="btn btn-start" id="btnStart" onclick="startSim()">▶ Start Simulation</button>
+    </div>
+  </header>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Idle — press Start to begin</span>
+    <span class="status-sep">·</span>
+    <span class="ts" id="timestampDisplay">--:--:--</span>
+    <span class="status-sep">·</span>
+    <span style="color:var(--text-muted)">RL Agent v2.4 · PPO Policy</span>
+  </div>
+
+  <!-- METRIC CARDS -->
+  <div class="metrics-grid">
+
+    <!-- Vehicles Waiting -->
+    <div class="card" id="card-vehicles" style="--card-accent: #3b82f6">
+      <div class="card-label">
+        <div class="card-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6">🚗</div>
+        Vehicles Waiting
+      </div>
+      <div class="card-value" id="valVehicles">—</div>
+      <div class="card-sub">
+        <span id="trendVehicles" class="trend flat">— —</span>
+        <span>vs prev cycle</span>
+      </div>
+    </div>
+
+    <!-- Avg Wait Time -->
+    <div class="card" id="card-wait" style="--card-accent: #f59e0b">
+      <div class="card-label">
+        <div class="card-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b">⏱</div>
+        Avg Waiting Time
+      </div>
+      <div class="card-value" id="valWait">—</div>
+      <div class="card-sub">
+        <span id="trendWait" class="trend flat">— —</span>
+        <span>seconds per vehicle</span>
+      </div>
+    </div>
+
+    <!-- Reward -->
+    <div class="card" id="card-reward" style="--card-accent: #00e5c8">
+      <div class="card-label">
+        <div class="card-icon" style="background:rgba(0,229,200,0.12);color:#00e5c8">🎯</div>
+        Reward Value
+      </div>
+      <div class="card-value" id="valReward">—</div>
+      <div class="card-sub">
+        <span id="trendReward" class="trend flat">— —</span>
+        <span>cumulative RL reward</span>
+      </div>
+    </div>
+
+    <!-- Signal Status -->
+    <div class="card signal-card" id="card-signal" style="--card-accent: #10b981">
+      <div class="traffic-light">
+        <div class="light red-l"    id="lightRed"></div>
+        <div class="light yellow-l" id="lightYellow"></div>
+        <div class="light green-l"  id="lightGreen"></div>
+      </div>
+      <div>
+        <div class="signal-label" id="signalLabel">OFFLINE</div>
+        <div class="signal-timer" id="signalTimer">phase — / —</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM GRID: chart + log -->
+  <div class="bottom-grid">
+
+    <!-- Chart -->
+    <div class="card chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Reward Signal vs Time Steps</div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#00e5c8"></div>Reward
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#3b82f6"></div>Vehicles
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#f59e0b"></div>Wait (s)
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="rewardChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="card log-card">
+      <div class="log-title">
+        Event Log
+        <span class="log-title-badge">LIVE</span>
+      </div>
+      <div class="log-scroll" id="logScroll"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* ══════════════════════════════════════════
+     STATE
+  ══════════════════════════════════════════ */
+  const MAX_HISTORY = 60;
+  const SIGNAL_PHASES = ['RED', 'YELLOW', 'GREEN'];
+  const SIGNAL_DURATIONS = { RED: 12, YELLOW: 3, GREEN: 10 }; // seconds
+  const SIGNAL_COLORS = { RED: 'var(--red)', YELLOW: 'var(--yellow)', GREEN: 'var(--green)' };
+
+  let state = {
+    running: false,
+    intervalId: null,
+    step: 0,
+    vehicles: 0,
+    waitTime: 0,
+    reward: 0,
+    cumReward: 0,
+    prevVehicles: 0,
+    prevWait: 0,
+    prevReward: 0,
+    signalPhase: 0,         // index into SIGNAL_PHASES
+    signalTick: 0,          // ticks spent in current phase
+    history: { labels: [], reward: [], vehicles: [], wait: [] }
+  };
+
+  /* ══════════════════════════════════════════
+     CHART SETUP
+  ══════════════════════════════════════════ */
+  const ctx = document.getElementById('rewardChart').getContext('2d');
+
+  const makeDataset = (label, color, yAxis) => ({
+    label,
+    data: [],
+    borderColor: color,
+    backgroundColor: color.replace(')', ',0.08)').replace('rgb', 'rgba'),
+    borderWidth: 2,
+    pointRadius: 0,
+    pointHoverRadius: 4,
+    tension: 0.45,
+    fill: yAxis === 'y' ? true : false,
+    yAxisID: yAxis,
+  });
+
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { ...makeDataset('Reward', '#00e5c8', 'y'),   fill: true },
+        { ...makeDataset('Vehicles', '#3b82f6', 'y2'), fill: false },
+        { ...makeDataset('Wait (s)', '#f59e0b', 'y2'), fill: false },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 400, easing: 'easeInOutQuart' },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111827',
+          borderColor: 'rgba(255,255,255,0.08)',
+          borderWidth: 1,
+          titleColor: '#f0f4ff',
+          bodyColor: '#8899bb',
+          padding: 10,
+          cornerRadius: 8,
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#445066', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 },
+          border: { color: 'transparent' }
+        },
+        y: {
+          position: 'left',
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#00e5c8', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 6 },
+          border: { color: 'transparent' },
+          title: { display: true, text: 'Reward', color: '#00e5c8', font: { size: 10 } }
+        },
+        y2: {
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { color: '#3b82f6', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 6 },
+          border: { color: 'transparent' },
+          title: { display: true, text: 'Vehicles / Wait', color: '#3b82f6', font: { size: 10 } }
+        }
+      }
+    }
+  });
+
+  /* ══════════════════════════════════════════
+     RL SIMULATION ENGINE
+  ══════════════════════════════════════════ */
+
+  // Smooth random walk with bounds
+  function randomWalk(current, min, max, step, noise = 0.3) {
+    const drift = (Math.random() - 0.5) * step;
+    const mean  = (min + max) / 2;
+    const pull  = (mean - current) * noise;
+    return Math.min(max, Math.max(min, current + drift + pull));
+  }
+
+  function computeReward(vehicles, wait, phase) {
+    const throughput = (100 - vehicles) * 0.6;
+    const waitPenalty = -wait * 0.5;
+    const phaseBonus = (phase === 'GREEN') ? 15 : (phase === 'RED' ? -10 : 0);
+    const noise = (Math.random() - 0.5) * 12;
+    return Math.round(throughput + waitPenalty + phaseBonus + noise);
+  }
+
+  function stepSignal() {
+    const phaseName  = SIGNAL_PHASES[state.signalPhase];
+    const duration   = SIGNAL_DURATIONS[phaseName];
+    state.signalTick += 1;
+    if (state.signalTick >= duration) {
+      state.signalTick = 0;
+      state.signalPhase = (state.signalPhase + 1) % SIGNAL_PHASES.length;
+    }
+  }
+
+  function tick() {
+    state.step++;
+    stepSignal();
+
+    state.prevVehicles = state.vehicles;
+    state.prevWait     = state.waitTime;
+    state.prevReward   = state.reward;
+
+    const phaseName = SIGNAL_PHASES[state.signalPhase];
+
+    // Dynamic vehicle/wait based on signal
+    const vTarget = phaseName === 'GREEN' ? 15 : (phaseName === 'RED' ? 70 : 50);
+    const wTarget = phaseName === 'GREEN' ? 5  : (phaseName === 'RED' ? 40 : 22);
+
+    state.vehicles  = Math.round(randomWalk(state.vehicles,  0, 100, 14 + Math.random()*8, 0.18 + Math.random()*0.1));
+    state.vehicles  = Math.round(state.vehicles * 0.7 + vTarget * 0.3 + (Math.random()-0.5)*10);
+    state.vehicles  = Math.max(0, Math.min(100, state.vehicles));
+
+    state.waitTime  = parseFloat((randomWalk(state.waitTime,  0,  60, 6 + Math.random()*5, 0.15) * 0.72 + wTarget * 0.28 + (Math.random()-0.5)*5).toFixed(1));
+    state.waitTime  = Math.max(0, Math.min(60, state.waitTime));
+
+    state.reward    = computeReward(state.vehicles, state.waitTime, phaseName);
+    state.cumReward += state.reward;
+
+    updateMetrics();
+    updateSignal();
+    updateChart();
+    updateLog();
+  }
+
+  /* ══════════════════════════════════════════
+     UI UPDATES
+  ══════════════════════════════════════════ */
+
+  function updateMetrics() {
+    // Vehicles
+    setMetric('valVehicles', state.vehicles, '',
+      state.vehicles, state.prevVehicles,
+      'trendVehicles', 'card-vehicles');
+
+    // Wait time
+    setMetric('valWait', state.waitTime, 's',
+      state.waitTime, state.prevWait,
+      'trendWait', 'card-wait');
+
+    // Reward
+    setMetric('valReward', state.reward > 0 ? '+'+state.reward : state.reward, '',
+      state.reward, state.prevReward,
+      'trendReward', 'card-reward',
+      true);
+
+    // Step + timestamp
+    document.getElementById('stepCounter').textContent = state.step;
+    document.getElementById('timestampDisplay').textContent = new Date().toLocaleTimeString();
+  }
+
+  function setMetric(valId, display, unit, cur, prev, trendId, cardId, invertGood = false) {
+    const el  = document.getElementById(valId);
+    const tel = document.getElementById(trendId);
+    const card = document.getElementById(cardId);
+
+    el.textContent = display + unit;
+
+    const diff  = cur - prev;
+    const pct   = prev !== 0 ? Math.abs((diff / prev) * 100).toFixed(1) : '0.0';
+    let cls = 'flat', arrow = '→', label = `${pct}%`;
+
+    if (Math.abs(diff) > 0.5) {
+      const isUp = diff > 0;
+      // For reward, up = good; for vehicles/wait, up = bad
+      cls = isUp ? (invertGood ? 'up' : 'down') : (invertGood ? 'down' : 'up');
+      arrow = isUp ? '↑' : '↓';
+      label = `${arrow} ${pct}%`;
+    }
+
+    tel.className = `trend ${cls}`;
+    tel.textContent = label;
+
+    card.classList.remove('updated');
+    void card.offsetWidth;
+    card.classList.add('updated');
+  }
+
+  function updateSignal() {
+    const phaseName = SIGNAL_PHASES[state.signalPhase];
+    const duration  = SIGNAL_DURATIONS[phaseName];
+    const remaining = duration - state.signalTick;
+
+    document.getElementById('lightRed').classList.toggle('on',    phaseName === 'RED');
+    document.getElementById('lightYellow').classList.toggle('on', phaseName === 'YELLOW');
+    document.getElementById('lightGreen').classList.toggle('on',  phaseName === 'GREEN');
+
+    const label = document.getElementById('signalLabel');
+    label.textContent = phaseName;
+    label.style.color = SIGNAL_COLORS[phaseName];
+
+    document.getElementById('signalTimer').textContent = `phase ${state.signalPhase+1}/3 · ${remaining}s left`;
+  }
+
+  function updateChart() {
+    const { history } = state;
+    history.labels.push(state.step);
+    history.reward.push(state.reward);
+    history.vehicles.push(state.vehicles);
+    history.wait.push(state.waitTime);
+
+    if (history.labels.length > MAX_HISTORY) {
+      history.labels.shift();
+      history.reward.shift();
+      history.vehicles.shift();
+      history.wait.shift();
+    }
+
+    chart.data.labels           = [...history.labels];
+    chart.data.datasets[0].data = [...history.reward];
+    chart.data.datasets[1].data = [...history.vehicles];
+    chart.data.datasets[2].data = [...history.wait];
+    chart.update('none');
+  }
+
+  /* ══════════════════════════════════════════
+     EVENT LOG
+  ══════════════════════════════════════════ */
+  const LOG_MESSAGES = {
+    signalChange: (p) => [
+      p === 'GREEN'  ? `Signal switched to <strong>GREEN</strong> — vehicles can proceed` : null,
+      p === 'RED'    ? `Signal switched to <strong>RED</strong> — vehicles halting` : null,
+      p === 'YELLOW' ? `Signal switching — <strong>YELLOW</strong> transition phase` : null,
+    ].find(Boolean),
+    highTraffic:  () => `High congestion detected — <strong>${state.vehicles} vehicles</strong> waiting`,
+    longWait:     () => `Wait time elevated — avg <strong>${state.waitTime}s</strong> per vehicle`,
+    goodReward:   () => `Agent reward spike — <strong>+${state.reward}</strong> pts (policy improving)`,
+    badReward:    () => `Reward penalty — <strong>${state.reward}</strong> pts (agent adjusting)`,
+    normal:       () => `Step <strong>${state.step}</strong> — agent running nominal RL policy`,
+  };
+
+  let lastLoggedPhase = -1;
+
+  function updateLog() {
+    const phaseName = SIGNAL_PHASES[state.signalPhase];
+    let type = 'info', msg;
+
+    if (state.signalPhase !== lastLoggedPhase) {
+      lastLoggedPhase = state.signalPhase;
+      type = phaseName === 'GREEN' ? 'good' : (phaseName === 'RED' ? 'warn' : 'info');
+      msg  = LOG_MESSAGES.signalChange(phaseName);
+    } else if (state.vehicles > 80) {
+      type = 'warn'; msg = LOG_MESSAGES.highTraffic();
+    } else if (state.waitTime > 48) {
+      type = 'warn'; msg = LOG_MESSAGES.longWait();
+    } else if (state.reward > 60) {
+      type = 'good'; msg = LOG_MESSAGES.goodReward();
+    } else if (state.reward < -20) {
+      type = 'bad';  msg = LOG_MESSAGES.badReward();
+    } else if (state.step % 5 === 0) {
+      msg = LOG_MESSAGES.normal();
+    }
+
+    if (!msg) return;
+
+    const scroll = document.getElementById('logScroll');
+    const time   = new Date().toLocaleTimeString();
+
+    const entry  = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `
+      <span class="log-time">${time}</span>
+      <span class="log-msg">${msg}</span>
+    `;
+    scroll.prepend(entry);
+
+    // Keep max 30 entries
+    while (scroll.children.length > 30) scroll.removeChild(scroll.lastChild);
+  }
+
+  /* ══════════════════════════════════════════
+     SIMULATION CONTROL
+  ══════════════════════════════════════════ */
+
+  function startSim() {
+    if (state.running) return;
+    state.running = true;
+
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnStop').style.display  = 'inline-flex';
+    document.getElementById('statusDot').classList.add('active');
+    document.getElementById('statusText').textContent = 'Running — RL agent optimizing signal policy';
+
+    // initialize signal visually
+    updateSignal();
+
+    state.intervalId = setInterval(tick, 1000);
+  }
+
+  function stopSim() {
+    if (!state.running) return;
+    state.running = false;
+    clearInterval(state.intervalId);
+    state.intervalId = null;
+
+    document.getElementById('btnStart').style.display = 'inline-flex';
+    document.getElementById('btnStop').style.display  = 'none';
+    document.getElementById('statusDot').classList.remove('active');
+    document.getElementById('statusText').textContent = `Paused at step ${state.step} — click Start to resume`;
+
+    logSysMsg('info', `Simulation <strong>paused</strong> at step ${state.step}`);
+  }
+
+  function resetSim() {
+    stopSim();
+
+    state.step = 0; state.vehicles = 0; state.waitTime = 0;
+    state.reward = 0; state.cumReward = 0;
+    state.prevVehicles = 0; state.prevWait = 0; state.prevReward = 0;
+    state.signalPhase = 0; state.signalTick = 0;
+    state.history = { labels: [], reward: [], vehicles: [], wait: [] };
+    lastLoggedPhase = -1;
+
+    ['valVehicles','valWait','valReward'].forEach(id => document.getElementById(id).textContent = '—');
+    ['trendVehicles','trendWait','trendReward'].forEach(id => {
+      const el = document.getElementById(id);
+      el.className = 'trend flat'; el.textContent = '— —';
+    });
+
+    document.getElementById('signalLabel').textContent = 'OFFLINE';
+    document.getElementById('signalLabel').style.color = 'var(--text-muted)';
+    document.getElementById('signalTimer').textContent = 'phase — / —';
+    ['lightRed','lightYellow','lightGreen'].forEach(id => document.getElementById(id).classList.remove('on'));
+
+    document.getElementById('stepCounter').textContent = '—';
+    document.getElementById('timestampDisplay').textContent = '--:--:--';
+    document.getElementById('statusText').textContent = 'Idle — press Start to begin';
+    document.getElementById('logScroll').innerHTML = '';
+
+    chart.data.labels = [];
+    chart.data.datasets.forEach(d => d.data = []);
+    chart.update();
+
+    logSysMsg('info', 'Dashboard <strong>reset</strong> — ready for new simulation run');
+  }
+
+  function logSysMsg(type, msg) {
+    const scroll = document.getElementById('logScroll');
+    const time   = new Date().toLocaleTimeString();
+    const entry  = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `<span class="log-time">${time}</span><span class="log-msg">${msg}</span>`;
+    scroll.prepend(entry);
+  }
+</script>
+</body>
+</html>
